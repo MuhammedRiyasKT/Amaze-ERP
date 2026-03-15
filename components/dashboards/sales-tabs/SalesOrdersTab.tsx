@@ -424,8 +424,8 @@ export const SalesOrdersTab: React.FC<SalesOrdersTabProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Tasks</SelectItem>
-                        <SelectItem value="assigned">Fully Assigned</SelectItem>
-                        <SelectItem value="unassigned">Pending Assignment</SelectItem>
+                        <SelectItem value="assigned">Task Assigned</SelectItem>
+                        <SelectItem value="unassigned">0 Task Assigned</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
