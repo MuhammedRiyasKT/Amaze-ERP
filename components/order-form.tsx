@@ -23,9 +23,10 @@ import {
   CheckCircle,
   Phone,
   MessageSquare,
-  LayoutGrid // Added for Category Icon
+  LayoutGrid
 } from "lucide-react"
 import { type Order, type CreateOrderRequest, type UpdateOrderRequest, type Customer } from "@/lib/api"
+import { OrderImageManagerDialog } from "@/components/order-image-manager-dialog"
 
 interface OrderFormProps {
   isOpen: boolean
@@ -45,7 +46,7 @@ type FormDataType = CreateOrderRequest & UpdateOrderRequest & {
 }
 
 export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }: OrderFormProps) {
-  const [formData, setFormData] = useState<FormDataType>({
+  const[formData, setFormData] = useState<FormDataType>({
     customer_id: 0,
     category: '',
     project_commit: '',
@@ -71,7 +72,8 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
   })
   
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+  const[error, setError] = useState('')
+  const [createdOrderForImages, setCreatedOrderForImages] = useState<Order | null>(null)
 
   const isExistingCustomer = !!(customer && customer.id);
 
@@ -102,6 +104,8 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
 
   useEffect(() => {
     if (isOpen) {
+      setCreatedOrderForImages(null); // Reset the image modal state when opened
+
       if (mode === 'edit' && order) {
         const safeAmount = safeNumber(order.amount)
         const safeAdditional = safeNumber(order.additional_amount)
@@ -230,6 +234,8 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
         account_name: formData.account_name?.trim() || undefined,
       }
       
+      let orderIdToUse: number | undefined = order?.id;
+
       if (mode === 'create') {
         if (formData.customer_id === 0) {
              submitData.customer_name = formData.customer_name;
@@ -240,45 +246,57 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
         if ((!submitData.customer_id && !submitData.customer_name) || !submitData.order_type || !submitData.product_name || !submitData.amount) {
           throw new Error('Please fill all required fields (Customer Name, Mobile, Product Name, Order Type, Amount)')
         }
-        await ApiClient.createOrder(submitData as CreateOrderRequest)
+        
+        // CREATE ORDER
+        const response: any = await ApiClient.createOrder(submitData as CreateOrderRequest)
+        // Extract the newly generated order ID securely
+        orderIdToUse = response?.id || response?.data?.id || response?.order?.id;
+
+        // Open the Image Upload Modal immediately instead of closing
+        setCreatedOrderForImages({ id: orderIdToUse } as Order);
+        setIsLoading(false);
+        return; // Return early so we don't trigger the close logic yet
+
       } else if (mode === 'edit' && order) {
+        // UPDATE ORDER
         await ApiClient.updateOrder(order.id, submitData as UpdateOrderRequest)
+        orderIdToUse = order.id;
+        
+        onSuccess()
+        onClose()
       }
       
-      onSuccess()
-      onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while saving the order')
-    } finally {
       setIsLoading(false)
     }
   }
 
   // === UI Options ===
-  const categoryOptions = [
+  const categoryOptions =[
     { value: 'crystal_wall_art', label: 'Crystal Wall Art' },
     { value: 'amaze_ads', label: 'Amaze Ads' },
     { value: 'crystal_glass_art', label: 'Crystal Glass Art' },
     { value: 'sign_board_amaze', label: 'Sign Board Amaze' },
   ]
-  const orderTypeOptions = [
+  const orderTypeOptions =[
     { value: 'online', label: 'Online Order', icon: <Globe className="h-4 w-4" /> },
     { value: 'offline', label: 'Offline/Physical Order', icon: <MapPin className="h-4 w-4" /> },
   ]
-  const paymentStatusOptions = [
+  const paymentStatusOptions =[
     { value: 'pending', label: 'Pending Payment', color: 'text-yellow-600 bg-yellow-50' },
     { value: 'partial', label: 'Partial Payment', color: 'text-orange-600 bg-orange-50' },
     { value: 'completed', label: 'Payment Completed', color: 'text-green-600 bg-green-50' },
     { value: 'overdue', label: 'Overdue', color: 'text-red-600 bg-red-50' },
   ]
-  const paymentMethodOptions = [
+  const paymentMethodOptions =[
     { value: 'cash', label: 'Cash', icon: '💰' },
     { value: 'card', label: 'Credit/Debit Card', icon: '💳' },
     { value: 'upi', label: 'UPI', icon: '📱' },
     { value: 'bank_transfer', label: 'Bank Transfer', icon: '🏦' },
     { value: 'cheque', label: 'Cheque', icon: '📄' },
   ]
-  const deliveryTypeOptions = [
+  const deliveryTypeOptions =[
     { value: 'pickup', label: 'Customer Pickup', icon: '👤' },
     { value: 'self_install', label: 'Self Installation', icon: '🔧' },
     { value: 'post_office', label: 'Post Office (Speed Post)', icon: '📮' },
@@ -287,8 +305,8 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
     { value: 'ksrtc', label: 'KSRTC', icon: '🚌' },
     { value: 'other', label: 'Other', icon: '✨' },
   ]
-  const deliveryRequiresAddress = ['post_office', 'dtdc', 'speed_safe_dtdc', 'ksrtc', 'other']
-  const accountNameOptions = [
+  const deliveryRequiresAddress =['post_office', 'dtdc', 'speed_safe_dtdc', 'ksrtc', 'other']
+  const accountNameOptions =[
     { value: 'iob', label: 'IOB' },
     { value: 'anil', label: 'Anil' },
     { value: 'remya', label: 'Remya' },
@@ -299,7 +317,7 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
     { value: 'cd', label: 'CD' },
   ]
 
-  const allStatusOptions = [
+  const allStatusOptions =[
       { value: 'pending', label: 'Pending', color: 'text-yellow-600' },
       { value: 'confirmed', label: 'Confirmed', color: 'text-blue-600' },
       { value: 'in_progress', label: 'In Progress', color: 'text-orange-600' },
@@ -311,7 +329,7 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
   let statusOptions = allStatusOptions.filter(opt => restrictedValues.includes(opt.value));
   if (mode === 'edit' && order && !restrictedValues.includes(order.status)) {
       const currentStatusObject = allStatusOptions.find(opt => opt.value === order.status);
-      if (currentStatusObject) statusOptions = [currentStatusObject, ...statusOptions];
+      if (currentStatusObject) statusOptions =[currentStatusObject, ...statusOptions];
   }
   statusOptions = statusOptions.filter((v, i, a) => a.findIndex(t => (t.value === v.value)) === i); 
 
@@ -319,269 +337,368 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
   const isFormValid = hasCustomer && !!formData.order_type && !!formData.product_name && safeNumber(formData.amount) > 0
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === 'create' ? 'Create New Order' : `Edit Order #${order?.id}`}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === 'create' 
-              ? isExistingCustomer ? `Create an order for ${customer?.customer_name}.` : 'Enter customer and order details below.'
-              : 'Update the order information below.'
-            }
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen && !createdOrderForImages} onOpenChange={onClose}>
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {mode === 'create' ? 'Create New Order' : `Edit Order #${order?.id}`}
+            </DialogTitle>
+            <DialogDescription>
+              {mode === 'create' 
+                ? isExistingCustomer ? `Create an order for ${customer?.customer_name}.` : 'Enter customer and order details below.'
+                : 'Update the order information below.'
+              }
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Customer Info Section */}
-          {isExistingCustomer ? (
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center mb-3">
-                <User className="h-4 w-4 mr-2 text-blue-600" />
-                <h4 className="font-semibold text-blue-800">Customer Information</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                <div><span className="font-medium text-gray-700">Name:</span><p className="text-gray-900 ml-1">{customer?.customer_name}</p></div>
-                <div><span className="font-medium text-gray-700">Mobile:</span><p className="text-gray-900 ml-1">{customer?.mobile_number}</p></div>
-                <div><span className="font-medium text-gray-700">WhatsApp:</span><p className="text-gray-900 ml-1">{customer?.whatsapp_number || 'N/A'}</p></div>
-                {customer?.address && <div className="md:col-span-3"><span className="font-medium text-gray-700">Address:</span><p className="text-gray-900 ml-1 mt-1">{customer.address}</p></div>}
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center mb-4">
-                <User className="h-4 w-4 mr-2 text-blue-600" />
-                <h4 className="font-semibold text-blue-800">Customer Information</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="customer_name" className="flex items-center"><User className="h-3 w-3 mr-1" /> Name *</Label>
-                  <Input id="customer_name" value={formData.customer_name || ''} onChange={(e) => handleInputChange('customer_name', e.target.value)} placeholder="Customer Name" className="bg-white" required={formData.customer_id === 0} />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Customer Info Section */}
+            {isExistingCustomer ? (
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center mb-3">
+                  <User className="h-4 w-4 mr-2 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">Customer Information</h4>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mobile_number" className="flex items-center"><Phone className="h-3 w-3 mr-1" /> Mobile *</Label>
-                  <Input id="mobile_number" value={formData.mobile_number || ''} onChange={(e) => handleInputChange('mobile_number', e.target.value)} placeholder="Mobile Number" className="bg-white" required={formData.customer_id === 0} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp_number" className="flex items-center"><MessageSquare className="h-3 w-3 mr-1" /> WhatsApp</Label>
-                  <Input id="whatsapp_number" value={formData.whatsapp_number || ''} onChange={(e) => handleInputChange('whatsapp_number', e.target.value)} placeholder="WhatsApp Number" className="bg-white" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div><span className="font-medium text-gray-700">Name:</span><p className="text-gray-900 ml-1">{customer?.customer_name}</p></div>
+                  <div><span className="font-medium text-gray-700">Mobile:</span><p className="text-gray-900 ml-1">{customer?.mobile_number}</p></div>
+                  <div><span className="font-medium text-gray-700">WhatsApp:</span><p className="text-gray-900 ml-1">{customer?.whatsapp_number || 'N/A'}</p></div>
+                  {customer?.address && <div className="md:col-span-3"><span className="font-medium text-gray-700">Address:</span><p className="text-gray-900 ml-1 mt-1">{customer.address}</p></div>}
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Product Information Section */}
-          <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-            <h4 className="font-semibold text-indigo-800 mb-4 flex items-center">
-              <ProductIcon className="h-4 w-4 mr-2" />
-              Product Information
-            </h4>
-            
-            {/* === HIGHLIGHTED CATEGORY SELECTION (MOVED TO TOP) === */}
-            <div className="mb-5 p-3 bg-white rounded-md border border-indigo-200 shadow-sm">
-                <Label htmlFor="category" className="flex items-center text-indigo-700 font-semibold mb-2">
-                    <LayoutGrid className="h-4 w-4 mr-2" />
-                    Select Category
-                </Label>
-                <Select 
-                  value={formData.category || ''} 
-                  onValueChange={(value) => handleInputChange('category', value)}
-                >
-                  <SelectTrigger className="h-11 bg-indigo-50/30 border-indigo-200 focus:ring-indigo-500">
-                    <SelectValue placeholder="-- Click to select a category --" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-            </div>
-            
-            {/* Rest of Product Info */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              <div className="space-y-2 lg:col-span-2">
-                <Label htmlFor="product_name" className="flex items-center">
-                  <Tag className="h-4 w-4 mr-1" />
-                  Product Name *
-                </Label>
-                <Input
-                  id="product_name"
-                  type="text"
-                  value={formData.product_name || ''}
-                  onChange={(e) => handleInputChange('product_name', e.target.value)}
-                  placeholder="Enter product/service name"
-                  required
-                  className="pr-10"
-                />
+            ) : (
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center mb-4">
+                  <User className="h-4 w-4 mr-2 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">Customer Information</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_name" className="flex items-center"><User className="h-3 w-3 mr-1" /> Name *</Label>
+                    <Input id="customer_name" value={formData.customer_name || ''} onChange={(e) => handleInputChange('customer_name', e.target.value)} placeholder="Customer Name" className="bg-white" required={formData.customer_id === 0} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mobile_number" className="flex items-center"><Phone className="h-3 w-3 mr-1" /> Mobile *</Label>
+                    <Input id="mobile_number" value={formData.mobile_number || ''} onChange={(e) => handleInputChange('mobile_number', e.target.value)} placeholder="Mobile Number" className="bg-white" required={formData.customer_id === 0} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp_number" className="flex items-center"><MessageSquare className="h-3 w-3 mr-1" /> WhatsApp</Label>
+                    <Input id="whatsapp_number" value={formData.whatsapp_number || ''} onChange={(e) => handleInputChange('whatsapp_number', e.target.value)} placeholder="WhatsApp Number" className="bg-white" />
+                  </div>
+                </div>
               </div>
+            )}
 
-              <div className="space-y-2 lg:col-span-1">
-                <Label htmlFor="order_type" className="flex items-center">
-                  <Package className="h-4 w-4 mr-1" />
-                  Order Type *
-                </Label>
-                <Select 
-                  value={formData.order_type} 
-                  onValueChange={(value) => handleInputChange('order_type', value)}
-                  required
-                >
-                  <SelectTrigger className="pr-10">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {orderTypeOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <span className="flex items-center">
-                          <span className="mr-2">{option.icon}</span>
+            {/* Product Information Section */}
+            <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+              <h4 className="font-semibold text-indigo-800 mb-4 flex items-center">
+                <ProductIcon className="h-4 w-4 mr-2" />
+                Product Information
+              </h4>
+              
+              <div className="mb-5 p-3 bg-white rounded-md border border-indigo-200 shadow-sm">
+                  <Label htmlFor="category" className="flex items-center text-indigo-700 font-semibold mb-2">
+                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      Select Category
+                  </Label>
+                  <Select 
+                    value={formData.category || ''} 
+                    onValueChange={(value) => handleInputChange('category', value)}
+                  >
+                    <SelectTrigger className="h-11 bg-indigo-50/30 border-indigo-200 focus:ring-indigo-500">
+                      <SelectValue placeholder="-- Click to select a category --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
                           {option.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
               </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div className="space-y-2 lg:col-span-2">
+                  <Label htmlFor="product_name" className="flex items-center">
+                    <Tag className="h-4 w-4 mr-1" />
+                    Product Name *
+                  </Label>
+                  <Input
+                    id="product_name"
+                    type="text"
+                    value={formData.product_name || ''}
+                    onChange={(e) => handleInputChange('product_name', e.target.value)}
+                    placeholder="Enter product/service name"
+                    required
+                    className="pr-10"
+                  />
+                </div>
 
-              <div className="space-y-2 lg:col-span-1">
-                <Label htmlFor="quantity">Quantity</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="0"
-                  value={formData.quantity || ''}
-                  onChange={(e) => handleInputChange('quantity', e.target.value)}
-                  placeholder="Qty"
-                  className="pr-10"
-                />
-              </div>
-            </div>
-          </div>
+                <div className="space-y-2 lg:col-span-1">
+                  <Label htmlFor="order_type" className="flex items-center">
+                    <Package className="h-4 w-4 mr-1" />
+                    Order Type *
+                  </Label>
+                  <Select 
+                    value={formData.order_type} 
+                    onValueChange={(value) => handleInputChange('order_type', value)}
+                    required
+                  >
+                    <SelectTrigger className="pr-10">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orderTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <span className="flex items-center">
+                            <span className="mr-2">{option.icon}</span>
+                            {option.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* Amount Information Section */}
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-            <h4 className="font-semibold text-green-800 mb-4 flex items-center">
-              <IndianRupee className="h-4 w-4 mr-2" />
-              Amount Information
-            </h4>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              <div className="space-y-2 lg:col-span-1">
-                <Label htmlFor="amount" className="flex items-center">
-                  Base Amount *
-                </Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.amount || ''}
-                  onChange={(e) => handleInputChange('amount', e.target.value)}
-                  placeholder="Enter base amount"
-                  required
-                  className="pl-8 pr-8"
-                />
-              </div>
-
-              <div className="space-y-2 lg:col-span-1">
-                <Label htmlFor="additional_amount" className="flex items-center">
-                  Additional Amount
-                </Label>
-                <Input
-                  id="additional_amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.additional_amount || ''}
-                  onChange={(e) => handleInputChange('additional_amount', e.target.value)}
-                  placeholder="Enter additional charges"
-                  className="pl-8 pr-8"
-                />
-              </div>
-
-              <div className="space-y-2 lg:col-span-2">
-                <Label htmlFor="total_amount" className="flex items-center font-semibold">
-                  <span>Total Amount</span>
-                  <span className="ml-2 text-sm text-gray-600">
-                    (₹ {formatCurrency(formData.total_amount)})
-                  </span>
-                </Label>
-                <Input
-                  id="total_amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formatCurrency(formData.total_amount)}
-                  disabled
-                  className="pl-8 pr-8 bg-gray-100"
-                  placeholder="Auto-calculated"
-                />
+                <div className="space-y-2 lg:col-span-1">
+                  <Label htmlFor="quantity">Quantity</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="0"
+                    value={formData.quantity || ''}
+                    onChange={(e) => handleInputChange('quantity', e.target.value)}
+                    placeholder="Qty"
+                    className="pr-10"
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Payment Information Section */}
-          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-            <h4 className="font-semibold text-yellow-800 mb-4 flex items-center">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Payment Information
-            </h4>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount_payed" className="flex items-center">
-                  <IndianRupee className="h-4 w-4 mr-1" />
-                  Amount Paid
-                </Label>
-                <Input
-                  id="amount_payed"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={safeNumber(formData.total_amount)}
-                  value={formData.amount_payed || ''}
-                  onChange={(e) => handleInputChange('amount_payed', e.target.value)}
-                  placeholder="0.00"
-                  className="pl-8 pr-8"
-                />
+            {/* Amount Information Section */}
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <h4 className="font-semibold text-green-800 mb-4 flex items-center">
+                <IndianRupee className="h-4 w-4 mr-2" />
+                Amount Information
+              </h4>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div className="space-y-2 lg:col-span-1">
+                  <Label htmlFor="amount" className="flex items-center">
+                    Base Amount *
+                  </Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.amount || ''}
+                    onChange={(e) => handleInputChange('amount', e.target.value)}
+                    placeholder="Enter base amount"
+                    required
+                    className="pl-8 pr-8"
+                  />
+                </div>
+
+                <div className="space-y-2 lg:col-span-1">
+                  <Label htmlFor="additional_amount" className="flex items-center">
+                    Additional Amount
+                  </Label>
+                  <Input
+                    id="additional_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.additional_amount || ''}
+                    onChange={(e) => handleInputChange('additional_amount', e.target.value)}
+                    placeholder="Enter additional charges"
+                    className="pl-8 pr-8"
+                  />
+                </div>
+
+                <div className="space-y-2 lg:col-span-2">
+                  <Label htmlFor="total_amount" className="flex items-center font-semibold">
+                    <span>Total Amount</span>
+                    <span className="ml-2 text-sm text-gray-600">
+                      (₹ {formatCurrency(formData.total_amount)})
+                    </span>
+                  </Label>
+                  <Input
+                    id="total_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formatCurrency(formData.total_amount)}
+                    disabled
+                    className="pl-8 pr-8 bg-gray-100"
+                    placeholder="Auto-calculated"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Information Section */}
+            <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <h4 className="font-semibold text-yellow-800 mb-4 flex items-center">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Payment Information
+              </h4>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount_payed" className="flex items-center">
+                    <IndianRupee className="h-4 w-4 mr-1" />
+                    Amount Paid
+                  </Label>
+                  <Input
+                    id="amount_payed"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={safeNumber(formData.total_amount)}
+                    value={formData.amount_payed || ''}
+                    onChange={(e) => handleInputChange('amount_payed', e.target.value)}
+                    placeholder="0.00"
+                    className="pl-8 pr-8"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="payment_status">Payment Status</Label>
+                  <Select 
+                    value={formData.payment_status || ''} 
+                    onValueChange={(value) => handleInputChange('payment_status', value)}
+                  >
+                    <SelectTrigger className="pr-10">
+                      <SelectValue placeholder="Select payment status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentStatusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <span className={`px-2 py-1 rounded ${option.color} font-medium`}>
+                            {option.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="payment_status">Payment Status</Label>
-                <Select 
-                  value={formData.payment_status || ''} 
-                  onValueChange={(value) => handleInputChange('payment_status', value)}
-                >
-                  <SelectTrigger className="pr-10">
-                    <SelectValue placeholder="Select payment status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentStatusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <span className={`px-2 py-1 rounded ${option.color} font-medium`}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="payment_method">Payment Method</Label>
+                  <Select 
+                    value={formData.payment_method || ''} 
+                    onValueChange={(value) => handleInputChange('payment_method', value)}
+                  >
+                    <SelectTrigger className="pr-10">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethodOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <span className="flex items-center">
+                            <span className="mr-2 text-lg">{option.icon}</span>
+                            {option.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="account_name">Account Name</Label>
+                  <Select 
+                    value={formData.account_name || ''} 
+                    onValueChange={(value) => handleInputChange('account_name', value)}
+                  >
+                    <SelectTrigger className="pr-10">
+                      <SelectValue placeholder="Select account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accountNameOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
                           {option.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Date Fields Section */}
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <h4 className="font-semibold text-purple-800 mb-4 flex items-center">
+                <Calendar className="h-4 w-4 mr-2" />
+                Timeline Information
+              </h4>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="project_commit" className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Project Commit Date
+                  </Label>
+                  <Input
+                    id="project_commit"
+                    type="date"
+                    value={formData.project_commit || ''}
+                    onChange={(e) => handleInputChange('project_commit', e.target.value)}
+                    className="pl-10 pr-10 text-sm py-8" 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="start_on" className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Start Date
+                  </Label>
+                  <Input
+                    id="start_on"
+                    type="date"
+                    value={formData.start_on || ''}
+                    onChange={(e) => handleInputChange('start_on', e.target.value)}
+                    className="pl-10 pr-10 text-sm py-8" 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="completion_date" className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Completion Date
+                  </Label>
+                  <Input
+                    id="completion_date"
+                    type="date"
+                    value={formData.completion_date || ''}
+                    onChange={(e) => handleInputChange('completion_date', e.target.value)}
+                    className="pl-10 pr-10 text-sm py-8" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Delivery Information Section */}
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="payment_method">Payment Method</Label>
+                <Label htmlFor="delivery_type" className="flex items-center">
+                  <Truck className="h-4 w-4 mr-1" />
+                  Delivery Type
+                </Label>
                 <Select 
-                  value={formData.payment_method || ''} 
-                  onValueChange={(value) => handleInputChange('payment_method', value)}
+                  value={formData.delivery_type || ''} 
+                  onValueChange={(value) => handleInputChange('delivery_type', value)}
                 >
                   <SelectTrigger className="pr-10">
-                    <SelectValue placeholder="Select payment method" />
+                    <SelectValue placeholder="Select delivery type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {paymentMethodOptions.map((option) => (
+                    {deliveryTypeOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         <span className="flex items-center">
                           <span className="mr-2 text-lg">{option.icon}</span>
@@ -593,195 +710,112 @@ export function OrderForm({ isOpen, onClose, onSuccess, order, mode, customer }:
                 </Select>
               </div>
 
+              {deliveryRequiresAddress.includes(formData.delivery_type || '') && (
+                <div className="space-y-2">
+                  <Label htmlFor="delivery_address" className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    Delivery Address
+                  </Label>
+                  <Textarea
+                    id="delivery_address"
+                    value={formData.delivery_address || ''}
+                    onChange={(e) => handleInputChange('delivery_address', e.target.value)}
+                    placeholder="Enter specific delivery address (if different from customer address)"
+                    rows={3}
+                    className="pr-4"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Status Field */}
+            <div className="p-4 bg-blue-50/70 border border-blue-400 rounded-lg shadow-md mt-6">
               <div className="space-y-2">
-                <Label htmlFor="account_name">Account Name</Label>
+                <Label htmlFor="status" className="flex items-center text-lg font-semibold text-blue-800">
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Order Status *
+                </Label>
                 <Select 
-                  value={formData.account_name || ''} 
-                  onValueChange={(value) => handleInputChange('account_name', value)}
+                  value={formData.status || ''} 
+                  onValueChange={(value) => handleInputChange('status', value)}
+                  required
                 >
-                  <SelectTrigger className="pr-10">
-                    <SelectValue placeholder="Select account" />
+                  <SelectTrigger className="pr-10 h-11 border-blue-500 bg-white">
+                    <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {accountNameOptions.map((option) => (
+                    {statusOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                        <span className={option.color}>{option.label}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          </div>
 
-          {/* Date Fields Section */}
-          <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <h4 className="font-semibold text-purple-800 mb-4 flex items-center">
-              <Calendar className="h-4 w-4 mr-2" />
-              Timeline Information
-            </h4>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="project_commit" className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Project Commit Date
-                </Label>
-                <Input
-                  id="project_commit"
-                  type="date"
-                  value={formData.project_commit || ''}
-                  onChange={(e) => handleInputChange('project_commit', e.target.value)}
-                  className="pl-10 pr-10 text-sm py-8" 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="start_on" className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Start Date
-                </Label>
-                <Input
-                  id="start_on"
-                  type="date"
-                  value={formData.start_on || ''}
-                  onChange={(e) => handleInputChange('start_on', e.target.value)}
-                  className="pl-10 pr-10 text-sm py-8" 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="completion_date" className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Completion Date
-                </Label>
-                <Input
-                  id="completion_date"
-                  type="date"
-                  value={formData.completion_date || ''}
-                  onChange={(e) => handleInputChange('completion_date', e.target.value)}
-                  className="pl-10 pr-10 text-sm py-8" 
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Delivery Information Section */}
-          <div className="space-y-4">
+            {/* Description Section */}
             <div className="space-y-2">
-              <Label htmlFor="delivery_type" className="flex items-center">
-                <Truck className="h-4 w-4 mr-1" />
-                Delivery Type
+              <Label htmlFor="description" className="flex items-center">
+                <FileText className="h-4 w-4 mr-1" />
+                Description / Notes
               </Label>
-              <Select 
-                value={formData.delivery_type || ''} 
-                onValueChange={(value) => handleInputChange('delivery_type', value)}
-              >
-                <SelectTrigger className="pr-10">
-                  <SelectValue placeholder="Select delivery type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {deliveryTypeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className="flex items-center">
-                        <span className="mr-2 text-lg">{option.icon}</span>
-                        {option.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Textarea
+                id="description"
+                value={formData.description || ''}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Enter order description, special instructions, or additional notes..."
+                rows={4}
+                className="pr-4"
+              />
             </div>
 
-            {/* Conditional Rendering for Address */}
-            {deliveryRequiresAddress.includes(formData.delivery_type || '') && (
-              <div className="space-y-2">
-                <Label htmlFor="delivery_address" className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  Delivery Address
-                </Label>
-                <Textarea
-                  id="delivery_address"
-                  value={formData.delivery_address || ''}
-                  onChange={(e) => handleInputChange('delivery_address', e.target.value)}
-                  placeholder="Enter specific delivery address (if different from customer address)"
-                  rows={3}
-                  className="pr-4"
-                />
-              </div>
+            {/* Error Display */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-          </div>
-          
-          {/* Status Field */}
-          <div className="p-4 bg-blue-50/70 border border-blue-400 rounded-lg shadow-md mt-6">
-            <div className="space-y-2">
-              <Label htmlFor="status" className="flex items-center text-lg font-semibold text-blue-800">
-                <CheckCircle className="h-5 w-5 mr-2" />
-                Order Status *
-              </Label>
-              <Select 
-                value={formData.status || ''} 
-                onValueChange={(value) => handleInputChange('status', value)}
-                required
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose} 
+                disabled={isLoading}
+                className="px-6"
               >
-                <SelectTrigger className="pr-10 h-11 border-blue-500 bg-white">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className={option.color}>{option.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isLoading || !isFormValid}
+                className={`px-6 ${!isFormValid ? 'opacity-50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              >
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Saving...
+                  </span>
+                ) : mode === 'create' ? 'Create Order' : 'Update Order'}
+              </Button>
             </div>
-          </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-          {/* Description Section */}
-          <div className="space-y-2">
-            <Label htmlFor="description" className="flex items-center">
-              <FileText className="h-4 w-4 mr-1" />
-              Description / Notes
-            </Label>
-            <Textarea
-              id="description"
-              value={formData.description || ''}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Enter order description, special instructions, or additional notes..."
-              rows={4}
-              className="pr-4"
-            />
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose} 
-              disabled={isLoading}
-              className="px-6"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading || !isFormValid}
-              className={`px-6 ${!isFormValid ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isLoading ? 'Saving...' : mode === 'create' ? 'Create Order' : 'Update Order'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      {/* Render Image Manager exactly after creation */}
+      {createdOrderForImages && (
+        <OrderImageManagerDialog 
+          order={createdOrderForImages} 
+          onClose={() => {
+            setCreatedOrderForImages(null);
+            onSuccess(); // Triggers parent list refresh
+            onClose();   // Completely unmounts the form
+          }} 
+        />
+      )}
+    </>
   )
 }

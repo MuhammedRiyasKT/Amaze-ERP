@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 // --- ICONS ---
 import {
-  Clock, LogIn, Calendar, CheckCircle, XCircle, AlertTriangle, User, Loader2, CalendarOff, Filter, XCircle as ClearFilterIcon, AlertCircle, LogOut, Edit, X, Clock10
+  Clock, LogIn, Calendar, CheckCircle, XCircle, AlertTriangle, User, Loader2, CalendarOff, Filter, XCircle as ClearFilterIcon, AlertCircle, LogOut, Edit, X, Clock10, Users
 } from "lucide-react"
 
 // --- API IMPORTS ---
@@ -41,16 +41,17 @@ type ComprehensiveAttendance = Attendance & {
     id: number | string; 
 };
 
-// Array of all possible statuses for easier maintenance
-const ATTENDANCE_STATUSES = ['present', 'late', 'absent', 'leave', 'half_day'];
+// --- SIMPLIFIED CONSTANTS ---
+// Array of all possible statuses for easier maintenance (Removed late, half_day, leave)
+const ATTENDANCE_STATUSES = ['present', 'absent'];
 
 // Define the order priority for display (Lower number = higher priority = earlier in list)
 const STATUS_PRIORITY: Record<string, number> = {
     'present': 1,
-    'late': 2,
-    'half_day': 3,
-    'leave': 4,
-    'absent': 5,
+    'absent': 2,
+    'late': 3,
+    'half_day': 4,
+    'leave': 5,
     'unknown': 99,
 };
 
@@ -84,6 +85,7 @@ const formatTimeFromISO = (isoString: string | null | undefined): string => {
     }
 };
 
+// Kept legacy cases so old records don't break, but they are removed from filters/metrics
 const getAttendanceStatusBadge = (status: string | null) => {
     const safeStatus = status?.toLowerCase() || 'unknown';
     let color: string;
@@ -95,13 +97,13 @@ const getAttendanceStatusBadge = (status: string | null) => {
             color = 'bg-green-100 text-green-800';
             Icon = CheckCircle;
             break;
-        case 'late':
-            color = 'bg-yellow-100 text-yellow-800';
-            Icon = AlertTriangle;
-            break;
         case 'absent':
             color = 'bg-red-100 text-red-800';
             Icon = XCircle;
+            break;
+        case 'late':
+            color = 'bg-yellow-100 text-yellow-800';
+            Icon = AlertTriangle;
             break;
         case 'leave':
             color = 'bg-blue-100 text-blue-800';
@@ -125,7 +127,14 @@ const getAttendanceStatusBadge = (status: string | null) => {
     );
 };
 
-const getTodayDateString = () => new Date().toISOString().split('T')[0];
+// Generates local timezone date string to ensure the "today" matches the user's view correctly
+const getTodayDateString = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 
 // =============================================================
@@ -149,9 +158,9 @@ const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({ record, staff
 
     // Form States
     const [checkInTime, setCheckInTime] = useState('');
-    const [checkOutTime, setCheckOutTime] = useState('');
+    const[checkOutTime, setCheckOutTime] = useState('');
     const [status, setStatus] = useState('present');
-    const [isSaving, setIsSaving] = useState(false);
+    const[isSaving, setIsSaving] = useState(false);
 
     // --- HELPER: STRICT STRING PARSER ---
     // Do not use Date() to parse inputs. Just split string.
@@ -177,9 +186,11 @@ const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({ record, staff
         if (isOpen && record) {
             setCheckInTime(extractTimeForInput(record.checkin_time));
             setCheckOutTime(extractTimeForInput(record.checkout_time));
-            setStatus(record.status || 'present');
+            // Ensure status maps to our available options or default to present
+            const safeStatus = (record.status && ATTENDANCE_STATUSES.includes(record.status.toLowerCase())) ? record.status.toLowerCase() : 'present';
+            setStatus(safeStatus);
         }
-    }, [isOpen, record]);
+    },[isOpen, record]);
 
     // --- FETCH FRESH DETAILS FROM API ---
     useEffect(() => {
@@ -196,7 +207,9 @@ const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({ record, staff
                         // Overwrite with fresh data
                         setCheckInTime(extractTimeForInput(data.checkin_time));
                         setCheckOutTime(extractTimeForInput(data.checkout_time));
-                        setStatus(data.status || 'present');
+                        
+                        const safeStatus = (data.status && ATTENDANCE_STATUSES.includes(data.status.toLowerCase())) ? data.status.toLowerCase() : 'present';
+                        setStatus(safeStatus);
                     }
                 } catch (error) {
                     console.error("Failed to load details", error);
@@ -207,7 +220,7 @@ const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({ record, staff
         };
 
         fetchDetails();
-    }, [isOpen, record.id]); 
+    },[isOpen, record.id]); 
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -234,7 +247,7 @@ const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({ record, staff
         const checkinISO = timeToISO(checkInTime);
         const checkoutISO = timeToISO(checkOutTime);
 
-        if (!checkinISO && status !== 'absent' && status !== 'leave') {
+        if (!checkinISO && status !== 'absent') {
             toast({ 
                 description: "Check-in time is required for this status.", 
                 variant: "destructive" 
@@ -356,7 +369,7 @@ const AttendanceRegisterSection: React.FC<AttendanceRegisterSectionProps> = ({ d
                 : 'Unknown Date';
             
             if (!acc[dateStr]) {
-                acc[dateStr] = [];
+                acc[dateStr] =[];
             }
             acc[dateStr].push(record);
             
@@ -421,6 +434,9 @@ const AttendanceRegisterSection: React.FC<AttendanceRegisterSectionProps> = ({ d
                         
                         {groupedData[dateStr].map((record) => {
                             const isSynthetic = typeof record.id !== 'number';
+                            // Restrict editing for non-current-day records
+                            const isNotToday = record.date !== getTodayDateString();
+                            const isDisabled = isSynthetic || isNotToday;
                             
                             return (
                                 <div key={record.id} className={`grid grid-cols-3 sm:grid-cols-7 items-center gap-2 sm:gap-4 p-4 border-b transition hover:bg-gray-50`}>
@@ -451,10 +467,10 @@ const AttendanceRegisterSection: React.FC<AttendanceRegisterSectionProps> = ({ d
                                             variant="ghost" 
                                             size="sm" 
                                             onClick={() => onEdit(record)}
-                                            title="Edit Attendance"
-                                            disabled={isSynthetic}
+                                            title={isNotToday ? "Can only edit today's attendance" : "Edit Attendance"}
+                                            disabled={isDisabled}
                                         >
-                                            {isSynthetic ? (
+                                            {isDisabled ? (
                                                 <X className="h-4 w-4 text-gray-300" />
                                             ) : (
                                                 <Edit className="h-4 w-4 text-blue-500" />
@@ -513,7 +529,7 @@ export function HRDashboard() {
   const { toast } = useToast()
 
   // --- API DATA STATES ---
-  const [staffs, setStaffs] = useState<ActiveStaff[]>([])
+  const[staffs, setStaffs] = useState<ActiveStaff[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([])
   
   // --- LOADING STATES ---
@@ -535,6 +551,7 @@ export function HRDashboard() {
   const [filterDate, setFilterDate] = useState<string>('') 
   const [filterStaffId, setFilterStaffId] = useState<string>('all')
   const [filterMonth, setFilterMonth] = useState<string>('');
+  const[filterStatus, setFilterStatus] = useState<string>('all');
 
 
   // Function to fetch and update attendance records
@@ -584,7 +601,7 @@ export function HRDashboard() {
 
   // --- UTC DATE CONSTRUCTION FOR MAIN FORM ---
   const getSubmissionDateTime = (dateString: string, timeString: string) => {
-    const [year, month, day] = dateString.split('-').map(Number);
+    const[year, month, day] = dateString.split('-').map(Number);
     const [hours, minutes] = timeString.split(':').map(Number);
     return new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
   }
@@ -748,6 +765,10 @@ export function HRDashboard() {
         filteredRecords = filteredRecords.filter(record => record.staff_id === staffIdFilterNum);
     }
 
+    if (filterStatus !== 'all') {
+        filteredRecords = filteredRecords.filter(r => r.status?.toLowerCase() === filterStatus);
+    }
+
     if (filterMonth) {
         filteredRecords = filteredRecords.filter(r => r.date?.startsWith(filterMonth));
     } else if (filterDate) {
@@ -756,11 +777,31 @@ export function HRDashboard() {
     
     return filteredRecords;
 
-  }, [filterDate, filterMonth, filterStaffId, attendanceRecords]);
+  },[filterDate, filterMonth, filterStaffId, filterStatus, attendanceRecords]);
 
 
-  const isFilterActive = filterDate !== '' || filterMonth !== '' || filterStaffId !== 'all';
+  const isFilterActive = filterDate !== '' || filterMonth !== '' || filterStaffId !== 'all' || filterStatus !== 'all';
   
+  // --- TODAY'S METRICS CALCULATION ---
+  const todayMetrics = useMemo(() => {
+      const todayStr = getTodayDateString();
+      const counts = { total: 0, present: 0, absent: 0 };
+      
+      const staffIdsToday = new Set();
+
+      attendanceRecords.forEach(record => {
+          if (record.date === todayStr) {
+              if (record.staff_id) staffIdsToday.add(record.staff_id);
+              const status = record.status?.toLowerCase();
+              if (status === 'present') counts.present++;
+              if (status === 'absent') counts.absent++;
+          }
+      });
+      
+      counts.total = staffIdsToday.size;
+      return counts;
+  }, [attendanceRecords]);
+
   const staffLoadingMessage = isLoadingStaffs ? (
       <SelectItem value="loading" disabled>Loading staff...</SelectItem>
   ) : (
@@ -942,14 +983,53 @@ export function HRDashboard() {
                     </CardHeader>
                     <CardContent>
                         
+                        {/* --- SUMMARY METRICS SECTION --- */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <Card className="bg-blue-50 border-blue-100 shadow-sm">
+                                <CardContent className="p-4 text-center">
+                                    <Users className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+                                    <p className="text-sm font-semibold text-blue-800 uppercase tracking-wider">Total Staff Today</p>
+                                    <p className="text-3xl font-bold text-blue-900 mt-1">{todayMetrics.total}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-green-50 border-green-100 shadow-sm">
+                                <CardContent className="p-4 text-center">
+                                    <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-2" />
+                                    <p className="text-sm font-semibold text-green-800 uppercase tracking-wider">Present Today</p>
+                                    <p className="text-3xl font-bold text-green-900 mt-1">{todayMetrics.present}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-red-50 border-red-100 shadow-sm">
+                                <CardContent className="p-4 text-center">
+                                    <XCircle className="h-6 w-6 text-red-600 mx-auto mb-2" />
+                                    <p className="text-sm font-semibold text-red-800 uppercase tracking-wider">Absent Today</p>
+                                    <p className="text-3xl font-bold text-red-900 mt-1">{todayMetrics.absent}</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* --- FILTERS SECTION --- */}
                         <div className="mb-6 p-4 border rounded-lg bg-gray-50 flex flex-wrap items-end gap-3">
                             <Filter className="h-5 w-5 text-gray-500 flex-shrink-0" />
                             
-                            <div className="flex flex-col gap-1 w-full sm:w-[180px] flex-shrink-0">
+                            <div className="flex flex-col gap-1 w-full sm:w-[150px] flex-shrink-0">
+                                <label className="text-xs font-medium text-gray-600">Filter by Status</label>
+                                <Select value={filterStatus} onValueChange={setFilterStatus} disabled={isLoadingAttendance}>
+                                    <SelectTrigger className="bg-white"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Statuses</SelectItem>
+                                        <SelectItem value="present">Present</SelectItem>
+                                        <SelectItem value="absent">Absent</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex flex-col gap-1 w-full sm:w-[160px] flex-shrink-0">
                                 <label className="text-xs font-medium text-gray-600">Filter by Month</label>
                                 <Input 
                                     type="month" 
                                     value={filterMonth} 
+                                    className="bg-white"
                                     onChange={(e) => {
                                         setFilterMonth(e.target.value);
                                         if (e.target.value) setFilterDate('');
@@ -958,11 +1038,12 @@ export function HRDashboard() {
                                 />
                             </div>
 
-                            <div className="flex flex-col gap-1 w-full sm:w-[180px] flex-shrink-0">
+                            <div className="flex flex-col gap-1 w-full sm:w-[160px] flex-shrink-0">
                                 <label className="text-xs font-medium text-gray-600">Or by Specific Date</label>
                                 <Input 
                                     type="date" 
                                     value={filterDate} 
+                                    className="bg-white"
                                     onChange={(e) => {
                                         setFilterDate(e.target.value);
                                         if (e.target.value) setFilterMonth('');
@@ -978,7 +1059,7 @@ export function HRDashboard() {
                                     onValueChange={setFilterStaffId}
                                     disabled={isLoadingAttendance || isLoadingStaffs}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="bg-white">
                                         <SelectValue placeholder="All Staff" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1000,9 +1081,10 @@ export function HRDashboard() {
                                         setFilterDate(''); 
                                         setFilterMonth('');
                                         setFilterStaffId('all'); 
+                                        setFilterStatus('all');
                                         toast({ description: "Filters cleared." }); 
                                     }}
-                                    className="mt-auto h-9 text-red-600 border-red-200 hover:bg-red-50"
+                                    className="mt-auto h-9 text-red-600 border-red-200 hover:bg-red-50 bg-white"
                                 >
                                     <ClearFilterIcon className="h-4 w-4 mr-1" />
                                     Clear

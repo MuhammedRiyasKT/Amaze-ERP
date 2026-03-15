@@ -330,3 +330,58 @@ export const getStaffByRoles = async (): Promise<StaffUser[]> => {
     throw error;
   }
 };
+
+export interface SalesTask {
+  id: number
+  order_id: number
+  task_description: string
+  status: string
+  assigned_on: string
+  completion_time: string
+  order_completion_date: string
+  completed_on: string | null
+
+  customer: {
+    id: number
+    name: string
+  }
+
+  order: {
+    id: number
+    generated_order_id: string
+    product_name: string
+  }
+
+  assigned_by: {
+    id: number
+    staff_name: string
+    role: string
+  }
+
+  assigned_to: {
+    id: number
+    staff_name: string
+    role: string
+  }
+
+  updated_by: {
+    id: number | null
+    staff_name: string | null
+    role: string | null
+  }
+}
+
+export const getSalesTasks = async (): Promise<SalesTask[]> => {
+  const headers = getAuthHeaders()
+
+  const response = await fetch(`${API_BASE_URL}/sales/tasks`, {
+    method: "GET",
+    headers
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch tasks: ${response.status}`)
+  }
+
+  return response.json()
+}

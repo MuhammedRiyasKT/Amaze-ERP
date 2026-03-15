@@ -1,7 +1,8 @@
 import { getAuthHeaders } from './auth'
 
 // API Configuration
-export const API_BASE_URL = 'https://api.choisircraft.com'
+export const API_BASE_URL = 'ap1.choisircraft.com'
+
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -27,6 +28,7 @@ export interface StaffMember {
   role: string
   address: string
   status: 'active' | 'inactive'
+  is_active?: boolean
   image?: string
   created_at?: string
   updated_at?: string

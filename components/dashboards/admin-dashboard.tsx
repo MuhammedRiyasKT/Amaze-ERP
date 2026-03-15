@@ -20,6 +20,7 @@ import {
     getAllTasks,
     getOrder, 
     getTasksByOrder, 
+    updateOrder,
     type Order, 
     type Staff,
     type DetailedTask,
@@ -88,12 +89,7 @@ const getOrderImages = async (orderId: number): Promise<OrderImage[]> => {
     return []; // Return empty for some orders
 };
 
-const updateOrder = async (orderId: number, payload: any) => {
-    // console.log(`[MOCK API] Updating order ${orderId} with payload:`, payload);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    // Simulate success response
-    return { data: { message: "Success" } };
-};
+
 
 // --- TYPE EXTENSION FOR FRONTEND USE ---
 type OrderWithGeneratedId = Order & { 
@@ -387,7 +383,7 @@ const navItems = [
     { value: "orders", label: "Project Management", icon: FolderOpen }, // Renamed "Orders" to "Project Management"
     { value: "tasks", label: "Tasks", icon: CheckSquare },
     { value: "attendance", label: "Staff Attendance", icon: Calendar }, 
-    { value: "expenses", label: "Daily Expenses", icon: DollarSign }, 
+    { value: "expenses", label: "Daily Reports", icon: DollarSign }, 
     { value: "system", label: "System Health", icon: Activity },
     { value: "reports", label: "Reports", icon: TrendingUp },
 ]
@@ -608,16 +604,34 @@ export function AdminDashboard() {
         }
 
         try {
-            await updateOrder(projectId, payload); 
+            // Store the response from the actual API call
+            const response = await updateOrder(projectId, payload); 
             
-            toast({ title: "Success", description: `Project #${projectId} status updated to ${newStatus}.`, variant: "default" });
-
-            setIsStatusModalOpen(false);
-            setGeneratedOrderIdInput('');
-            await reloadData(); 
-            
+            // Handle error logic if returned
+            if (response.error) {
+                toast({ 
+                    title: "Status Update Failed", 
+                    description: response.error, 
+                    variant: "destructive" 
+                });
+            } else {
+                toast({ 
+                    title: "Success", 
+                    description: `Project #${projectId} status updated to ${newStatus}.`, 
+                    variant: "default" 
+                });
+    
+                setIsStatusModalOpen(false);
+                setGeneratedOrderIdInput('');
+                setSelectedOrderForStatus(null); // Clear the selection
+                await reloadData(); 
+            }
         } catch (e) {
-            toast({ title: "Error", description: `Failed to update status: ${e instanceof Error ? e.message : 'Unknown error'}.`, variant: "destructive" });
+            toast({ 
+                title: "Error", 
+                description: `Failed to update status: ${e instanceof Error ? e.message : 'Unknown error'}.`, 
+                variant: "destructive" 
+            });
         } finally {
             setIsStatusUpdating(false);
         }

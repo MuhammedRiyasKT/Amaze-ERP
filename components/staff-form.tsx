@@ -97,7 +97,7 @@ export function StaffForm({ isOpen, onClose, onSuccess, staff, mode }: StaffForm
     { value: 'sales', label: 'Sales' },
     { value: 'project', label: 'Project' },
     { value: 'designer', label: 'Designer' },
-    { value: 'printing', label: 'Printing' },
+    { value: 'production', label: 'Production' },
     { value: 'logistics', label: 'Logistics' },
     { value: 'hr', label: 'HR' },                 // <-- Added this line
     { value: 'accounts', label: 'Accountant' }, // <-- Added this line

@@ -17,7 +17,7 @@ import { SalesReportsTab } from "@/components/dashboards/sales-tabs/SalesReports
 
 import { type CustomerFormData } from "@/components/customer-form"
 
-import { SalesApiClient, type Customer, type Order, type RealCustomer } from "@/lib/sales"
+import { SalesApiClient, type Customer, type Order, type RealCustomer, type SalesTask } from "@/lib/sales"
 import {
   Users,
   Target,
@@ -29,6 +29,8 @@ import {
   getRealCustomers,
   updateRealCustomer,
   getStaffByRoles,
+  updateSalesCustomer,
+  getSalesTasks,
   type StaffUser
 } from "@/lib/sales"
 
@@ -58,7 +60,7 @@ export interface OrderById {
 
 // --- Helper Data and Functions ---
 const LEAD_STATUSES = ['cold', 'warm', 'hot', 'converted', 'lost']
-const ORDER_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled']
+const ORDER_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled',]
 
 const isDateWithinCustomRange = (
   dateString: string | Date | undefined,
@@ -114,6 +116,7 @@ export function SalesDashboard() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [realCustomers, setRealCustomers] = useState<RealCustomer[]>([])
+  const [tasks, setTasks] = useState<SalesTask[]>([])
 
   const [isLoading, setIsLoading] = useState(true)
   const [isOrdersLoading, setIsOrdersLoading] = useState(true)
@@ -128,6 +131,7 @@ export function SalesDashboard() {
   // Staff & Filters
   const [staffs, setStaffs] = useState<StaffUser[]>([])
   const [isStaffLoading, setIsStaffLoading] = useState(false)
+  const [orderRoleFilter, setOrderRoleFilter] = useState<string>('all')
   const [leadStaffFilterName, setLeadStaffFilterName] = useState<string>('all')
   const [leadStatusFilter, setLeadStatusFilter] = useState<string>('all')
   const [leadFromDate, setLeadFromDate] = useState<string>('')
@@ -167,6 +171,7 @@ export function SalesDashboard() {
     loadCustomers()
     loadOrders()
     loadRealCustomers()
+    loadTasks()
   }
 
   const loadStaffs = async () => {
@@ -218,6 +223,16 @@ export function SalesDashboard() {
       setIsRealCustomersLoading(false)
     }
   }
+
+  const loadTasks = async () => {
+  try {
+    const data = await getSalesTasks()
+    // const data = await res.json()
+    setTasks(data)
+  } catch (err) {
+    console.error("Failed to load tasks", err)
+  }
+}
 
   // === 3. HANDLERS ===
   const handleViewLead = (lead: Customer) => { setViewingLead(lead) }
@@ -291,8 +306,8 @@ export function SalesDashboard() {
         orderStatusFilter === 'all' || order.status === orderStatusFilter
       )
       .filter(order =>
-        isDateWithinCustomRange(order.created_on, orderFromDate, orderToDate)
-      )
+  isDateWithinCustomRange(order.completion_date, orderFromDate, orderToDate)
+)
       .filter(order =>
         orderStaffFilterName === 'all' || order.created_by_staff_name === orderStaffFilterName
       );
@@ -347,6 +362,8 @@ export function SalesDashboard() {
           {/* UPDATED: Moved Orders content to top (optional but good for organization) */}
           <TabsContent value="orders" className="space-y-6">
             <SalesOrdersTab
+              orderRoleFilter={orderRoleFilter}
+              setOrderRoleFilter={setOrderRoleFilter}
               error={error}
               isOrdersLoading={isOrdersLoading}
               orderSearchTerm={orderSearchTerm}
@@ -362,6 +379,7 @@ export function SalesDashboard() {
               staffs={staffs}
               isStaffLoading={isStaffLoading}
               filteredOrders={filteredOrders}
+              tasks={tasks}
               ORDER_STATUSES={ORDER_STATUSES}
               customers={customers}
               realCustomers={realCustomers}
@@ -489,6 +507,7 @@ export function SalesDashboard() {
         viewingRealCustomer={viewingRealCustomer}
         setViewingRealCustomer={setViewingRealCustomer}
         viewingOrder={viewingOrder}
+        tasks={tasks}
         setViewingOrder={setViewingOrder}
         isOrderDetailsLoading={isOrderDetailsLoading}
       />

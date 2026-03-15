@@ -14,15 +14,17 @@ import {
     MessageSquare,
     IndianRupee,
     Loader2,
-    Package,    // Added
-    CreditCard, // Added
-    Truck,      // Added
-    MapPin      // Added
+    Package,
+    CreditCard,
+    Truck,
+    MapPin,
+    CheckSquare, // Added
+    User         // Added
 } from "lucide-react"
 
 import { CustomerForm, type CustomerFormData } from "@/components/customer-form"
 import { OrderForm } from "@/components/order-form"
-import { type Customer, type Order, type RealCustomer } from "@/lib/sales" 
+import { type Customer, type Order, type RealCustomer, type SalesTask } from "@/lib/sales" 
 import { type OrderById } from "@/app/dashboard/sales/page" 
 
 // --- Helper functions ---
@@ -59,6 +61,17 @@ const getPaymentStatusBadge = (status: string) => {
     }
 }
 
+// Added for matching task status UI from project management
+const getTaskStatusColor = (status?: string | null) => {
+    const s = status?.toLowerCase();
+    switch (s) {
+        case 'completed': return 'bg-green-100 text-green-800'
+        case 'inprogress': case 'in_progress': case 'assigned': return 'bg-blue-100 text-blue-800'
+        case 'pending': return 'bg-yellow-100 text-yellow-800'
+        default: return 'bg-gray-100 text-gray-800'
+    }
+}
+
 // Define the interface for props expected by SalesModals
 interface SalesModalsProps {
     // Form State & Handlers
@@ -88,6 +101,7 @@ interface SalesModalsProps {
     viewingOrder: OrderById | null
     setViewingOrder: (order: OrderById | null) => void
     isOrderDetailsLoading: boolean
+    tasks: SalesTask[]
 }
 
 export const SalesModals: React.FC<SalesModalsProps> = ({
@@ -113,6 +127,7 @@ export const SalesModals: React.FC<SalesModalsProps> = ({
     viewingOrder,
     setViewingOrder,
     isOrderDetailsLoading,
+    tasks
 }) => {
 
     const handleOrderFormClose = () => {
@@ -121,6 +136,16 @@ export const SalesModals: React.FC<SalesModalsProps> = ({
         setEditingOrder(null)
         setOrderingForCustomer(null)
     }
+
+    console.log("Viewing Order:", viewingOrder?.id)
+console.log("Tasks:", tasks)
+
+const orderTasks = Array.isArray(tasks)
+    ? tasks.filter((task) => {
+        console.log("Task Order ID:", task.order_id)
+        return Number(task.order_id) === Number(viewingOrder?.id)
+    })
+    :[]
     
     return (
         <>
@@ -449,6 +474,40 @@ export const SalesModals: React.FC<SalesModalsProps> = ({
                                 {viewingOrder.delivery_type?.toLowerCase() === 'home_delivery' && !viewingOrder.delivery_address && (
                                     <div className="pt-2 text-red-500 italic">
                                         Delivery selected, but no address recorded.
+                                    </div>
+                                )}
+
+                                {/* ASSIGNED TASKS UPDATED UI */}
+                                <h4 className="font-bold text-gray-700 mt-4 border-t pt-3 flex items-center">
+                                    <CheckSquare className="h-4 w-4 mr-2" /> Assigned Tasks ({orderTasks.length})
+                                </h4>
+
+                                {orderTasks.length === 0 ? (
+                                    <p className="text-gray-500 italic">No tasks currently assigned to this order.</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {orderTasks.map((task) => (
+                                            <div key={task.id} className="p-3 border rounded-lg bg-white shadow-sm">
+                                                <div className="flex justify-between items-start">
+                                                    <p className="font-semibold">{task.task_description || `Task #${task.id}`}</p>
+                                                    <Badge variant="secondary" className={`capitalize flex-shrink-0 ${getTaskStatusColor(task.status)}`}>
+                                                        {task.status?.replace(/_/g, ' ')}
+                                                    </Badge>
+                                                </div>
+                                                <div className="text-xs text-gray-600 mt-1 space-y-1">
+                                                    <p className="flex items-center">
+                                                        <User className="h-3 w-3 mr-1" /> Assigned to: 
+                                                        {task.assigned_to?.staff_name ? (
+                                                            <span className="ml-1 font-medium text-gray-800">{task.assigned_to.staff_name}</span>
+                                                        ) : (
+                                                            <Badge variant="outline" className="ml-1 bg-red-50 text-red-600 border-red-200 h-5 px-1.5 text-[10px] uppercase">
+                                                                Unassigned
+                                                            </Badge>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
 
