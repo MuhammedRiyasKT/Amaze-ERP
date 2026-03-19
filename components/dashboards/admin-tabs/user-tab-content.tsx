@@ -177,41 +177,54 @@ function StaffForm({ isOpen, onClose, onSuccess, staff, mode }: StaffFormProps) 
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setIsFormLoading(true)
-        setError('')
+    e.preventDefault()
+    setIsFormLoading(true)
+    setError('')
 
-        try {
-            if (!formData.role) {
-                throw new Error('Please select a valid role before saving.');
-            }
-
-            if (mode === 'create') {
-                if (!formData.password) throw new Error('Password is required for new staff members.');
-                await ApiClient.createStaff(formData)
-            } else if (mode === 'edit' && staff) {
-                const updateData: UpdateStaffRequest = { ...formData } as UpdateStaffRequest
-                if (!updateData.password) {
-                    delete updateData.password
-                }
-                await ApiClient.updateStaff(staff.id, updateData)
-            }
-
-            onSuccess()
-            onClose()
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unexpected error occurred')
-        } finally {
-            setIsFormLoading(false)
+    try {
+        if (!formData.role) {
+            throw new Error('Please select a valid role before saving.')
         }
+
+        // ✅ 🔥 ROLE FIX HERE
+        const payload: CreateStaffRequest = {
+            ...formData,
+            role: formData.role === "production" ? "printing" : formData.role
+        }
+
+        console.log("✅ UI ROLE:", formData.role)
+        console.log("✅ FINAL ROLE:", payload.role)
+        console.log("✅ PAYLOAD:", payload)
+
+        if (mode === 'create') {
+            if (!formData.password) throw new Error('Password is required')
+            await ApiClient.createStaff(payload) // ✅ send payload
+        } else if (mode === 'edit' && staff) {
+            const updateData: UpdateStaffRequest = { ...payload }
+
+            if (!updateData.password) {
+                delete updateData.password
+            }
+
+            await ApiClient.updateStaff(staff.id, updateData)
+        }
+
+        onSuccess()
+        onClose()
+
+    } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+        setIsFormLoading(false)
     }
+}
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
-                        {mode === 'create' ? 'Add New Staff Member' : 'Edit Staff Member'}
+                        {mode === 'create' ? 'Add New Staff Members' : 'Edit Staff Member'}
                     </DialogTitle>
                     <DialogDescription>
                         {mode === 'create'
