@@ -29,7 +29,7 @@ const ROLE_OPTIONS = [
     { value: 'sales', label: 'Sales' },
     { value: 'project', label: 'Project' },
     { value: 'designer', label: 'Designer' },
-    { value: 'production', label: 'Production' },
+    { value: 'printing', label: 'Production' },
     { value: 'logistics', label: 'Logistics' },
     { value: 'hr', label: 'HR' },
     { value: 'accounts', label: 'Accounts' },

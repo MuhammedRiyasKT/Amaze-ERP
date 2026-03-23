@@ -273,13 +273,13 @@ export function PrintingDashboard() {
   const isFilterActive = filterAssignedDateFrom !== '' || filterCompletionDateTo !== '' || filterProjectTargetDateTo !== '';
 
   return (
-    <DashboardLayout title="Printing Dashboard" role="printing">
+    <DashboardLayout title="Production Dashboard" role="printing">
 
       <Tabs defaultValue="tasks" className="space-y-6"> 
         
         <div className="flex justify-center sm:justify-start mb-2">
             <TabsList className="grid w-full sm:w-auto grid-cols-2">
-            <TabsTrigger value="tasks" className="px-8">Print Queue</TabsTrigger>
+            <TabsTrigger value="tasks" className="px-8">Production Queue</TabsTrigger>
             <TabsTrigger value="reports" className="px-8">Reports</TabsTrigger>
             </TabsList>
         </div>
@@ -332,10 +332,10 @@ export function PrintingDashboard() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle className="flex items-center text-2xl">
-                      <Printer className="h-6 w-6 mr-3 text-blue-600" />Print Queue
+                      <Printer className="h-6 w-6 mr-3 text-blue-600" />Production
                     </CardTitle>
                     <CardDescription className="mt-1 text-sm text-gray-500">
-                      Manage your upcoming and active print jobs.
+                      Manage your upcoming and active production jobs.
                     </CardDescription>
                   </div>
               </div>
@@ -353,7 +353,7 @@ export function PrintingDashboard() {
                   </Button>
                   
                   {['assigned', 'in_progress', 'completed'].map(status => {
-                      const displayStatus = status === 'assigned' ? 'Queued' : status === 'in_progress' ? 'Printing' : 'Completed';
+                      const displayStatus = status === 'assigned' ? 'Queued' : status === 'in_progress' ? 'Production' : 'Completed';
                       return (
                           <Button
                               key={status}
@@ -401,12 +401,12 @@ export function PrintingDashboard() {
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20">
                     <Loader2 className="h-10 w-10 animate-spin text-blue-600 mb-4" />
-                    <p className="text-sm font-medium text-gray-500">Loading print queue...</p>
+                    <p className="text-sm font-medium text-gray-500">Loading production queue...</p>
                 </div>
               ) : error ? (
                 <div className="text-center py-20 border-2 border-dashed rounded-xl bg-red-50 border-red-100">
                     <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-                    <p className="font-bold text-red-700 text-lg">Failed to load print queue</p>
+                    <p className="font-bold text-red-700 text-lg">Failed to load production queue</p>
                     <p className="text-sm text-red-600 mt-1">{error}</p>
                 </div>
               ) : tasks.length === 0 ? (
@@ -438,7 +438,7 @@ export function PrintingDashboard() {
 
                     // Card styling based on urgency
                     const cardBorder = isOverdue ? "border-l-4 border-l-red-500 border-red-200" : isTargetToday ? "border-l-4 border-l-amber-500 border-amber-200" : "border-gray-200";
-                    const displayStatus = task.status === 'assigned' ? 'Queued' : task.status === 'in_progress' ? 'Printing' : 'Completed';
+                    const displayStatus = task.status === 'assigned' ? 'Queued' : task.status === 'in_progress' ? 'Production' : 'Completed';
                         
                     return (
                         <div key={task.id} className={`bg-white border rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col ${cardBorder}`}>
@@ -540,7 +540,7 @@ export function PrintingDashboard() {
                                         className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                                     >
                                         {updatingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlayCircle className="h-4 w-4 mr-2" />}
-                                        Start Printing
+                                        Start Production
                                     </Button>
                                 )}
 
@@ -551,7 +551,7 @@ export function PrintingDashboard() {
                                         className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white shadow-sm"
                                     >
                                         {updatingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                                        Finish Printing
+                                        Finish Production
                                     </Button>
                                 )}
                             </div>
@@ -573,7 +573,7 @@ export function PrintingDashboard() {
           <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                   <DialogTitle className="flex items-center">
-                      <Filter className="h-5 w-5 mr-2 text-blue-600" /> Filter Print Queue
+                      <Filter className="h-5 w-5 mr-2 text-blue-600" /> Filter Prodcution Queue
                   </DialogTitle>
                   <DialogDescription>
                       Narrow down your tasks by date parameters.
