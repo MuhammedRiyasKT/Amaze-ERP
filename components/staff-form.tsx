@@ -69,7 +69,7 @@ export function StaffForm({ isOpen, onClose, onSuccess, staff, mode }: StaffForm
 
     try {
       const { ApiClient } = await import('@/lib/api')
-      
+
       if (mode === 'create') {
         await ApiClient.createStaff(formData)
       } else if (mode === 'edit' && staff) {
@@ -80,7 +80,7 @@ export function StaffForm({ isOpen, onClose, onSuccess, staff, mode }: StaffForm
         }
         await ApiClient.updateStaff(staff.id, updateData)
       }
-      
+
       onSuccess()
       onClose()
     } catch (err) {
@@ -111,7 +111,7 @@ export function StaffForm({ isOpen, onClose, onSuccess, staff, mode }: StaffForm
             {mode === 'create' ? 'Add New Staff Member' : 'Edit Staff Member'}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'create' 
+            {mode === 'create'
               ? 'Fill in the details to add a new staff member to the system.'
               : 'Update the staff member information below.'
             }

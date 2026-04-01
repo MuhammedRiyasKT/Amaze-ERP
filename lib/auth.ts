@@ -115,7 +115,7 @@ export const getStoredToken = (): string | null => {
 export const getAuthHeaders = (): Record<string, string> => {
   const token = getStoredToken()
   if (!token) return {}
-  
+
   return {
     "Authorization": `Bearer ${token}`,
     "Content-Type": "application/json",

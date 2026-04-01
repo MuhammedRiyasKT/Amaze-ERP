@@ -35,13 +35,29 @@ const ROLE_OPTIONS = [
     { value: 'accounts', label: 'Accounts' },
 ]
 
+const ROLE_LABEL_MAP: Record<string, string> = {
+    crm: 'CRM',
+    sales: 'SALES',
+    project: 'PROJECT',
+    designer: 'DESIGNER',
+    printing: 'PRODUCTION',
+    logistics: 'LOGISTICS',
+    hr: 'HR',
+    accounts: 'ACCOUNTS',
+}
+
+const getRoleDisplayName = (role?: string) => {
+    if (!role) return 'N/A'
+    return ROLE_LABEL_MAP[role.toLowerCase()] || role.toUpperCase()
+}
+
 // Safely evaluate status accounting for uppercase/lowercase or boolean responses from API
 const checkIsActive = (status: any) => {
-  if (!status) return false
+    if (!status) return false
 
-  const s = String(status).toLowerCase().trim()
+    const s = String(status).toLowerCase().trim()
 
-  return ["active", "1", "true", "yes"].includes(s)
+    return ["active", "1", "true", "yes"].includes(s)
 }
 
 
@@ -177,54 +193,54 @@ function StaffForm({ isOpen, onClose, onSuccess, staff, mode }: StaffFormProps) 
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsFormLoading(true)
-    setError('')
+        e.preventDefault()
+        setIsFormLoading(true)
+        setError('')
 
-    try {
-        if (!formData.role) {
-            throw new Error('Please select a valid role before saving.')
-        }
-
-        // ✅ 🔥 ROLE FIX HERE
-        const payload: CreateStaffRequest = {
-            ...formData,
-            role: formData.role === "production" ? "printing" : formData.role
-        }
-
-        console.log("✅ UI ROLE:", formData.role)
-        console.log("✅ FINAL ROLE:", payload.role)
-        console.log("✅ PAYLOAD:", payload)
-
-        if (mode === 'create') {
-            if (!formData.password) throw new Error('Password is required')
-            await ApiClient.createStaff(payload) // ✅ send payload
-        } else if (mode === 'edit' && staff) {
-            const updateData: UpdateStaffRequest = { ...payload }
-
-            if (!updateData.password) {
-                delete updateData.password
+        try {
+            if (!formData.role) {
+                throw new Error('Please select a valid role before saving.')
             }
 
-            await ApiClient.updateStaff(staff.id, updateData)
+            // ✅ 🔥 ROLE FIX HERE
+            const payload: CreateStaffRequest = {
+                ...formData,
+                role: formData.role === "production" ? "printing" : formData.role
+            }
+
+            console.log("✅ UI ROLE:", formData.role)
+            console.log("✅ FINAL ROLE:", payload.role)
+            console.log("✅ PAYLOAD:", payload)
+
+            if (mode === 'create') {
+                if (!formData.password) throw new Error('Password is required')
+                await ApiClient.createStaff(payload) // ✅ send payload
+            } else if (mode === 'edit' && staff) {
+                const updateData: UpdateStaffRequest = { ...payload }
+
+                if (!updateData.password) {
+                    delete updateData.password
+                }
+
+                await ApiClient.updateStaff(staff.id, updateData)
+            }
+
+            onSuccess()
+            onClose()
+
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred')
+        } finally {
+            setIsFormLoading(false)
         }
-
-        onSuccess()
-        onClose()
-
-    } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-        setIsFormLoading(false)
     }
-}
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
-                        {mode === 'create' ? 'Add New Staff Members' : 'Edit Staff Member'}
+                        {mode === 'create' ? 'Add New Staff Member' : 'Edit Staff Member'}
                     </DialogTitle>
                     <DialogDescription>
                         {mode === 'create'
@@ -335,7 +351,7 @@ export const StaffManagementPage: React.FC = () => {
         setError('');
         try {
             const data = await ApiClient.getStaff();
-           console.log("All Staff:", data);
+            console.log("All Staff:", data);
             setStaff(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load staff data.');
@@ -350,7 +366,7 @@ export const StaffManagementPage: React.FC = () => {
     }, [reloadData]);
 
     // Check if the user has triggered a search or selected a role filter
-   const hasActiveFilter = roleFilter !== '' || searchQuery.trim() !== '';
+    const hasActiveFilter = roleFilter !== '' || searchQuery.trim() !== '';
 
     // Only map matching staff if a filter/search is active. Otherwise, empty list.
     const filteredStaff = !hasActiveFilter ? [] : staff.filter((member) => {
@@ -532,7 +548,7 @@ export const StaffManagementPage: React.FC = () => {
                                                 <div className="flex flex-wrap items-center gap-2.5">
                                                     <h3 className="text-lg font-bold text-gray-900 leading-none">{staffMember.staff_name}</h3>
                                                     <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 shadow-none">
-                                                        {staffMember.role}
+                                                       {getRoleDisplayName(staffMember.role)}
                                                     </Badge>
                                                     <Badge variant="outline" className={`px-2 py-0.5 border text-xs font-medium shadow-none ${isActive ? 'border-green-200 text-green-700 bg-green-50' : 'border-red-200 text-red-700 bg-red-50'}`}>
                                                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
