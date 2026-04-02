@@ -1,7 +1,7 @@
 import { getAuthHeaders } from './auth'
 
 // API Configuration
-export const API_BASE_URL = 'https://api1.choisircraft.com'
+export const API_BASE_URL = 'http://127.0.0.1:8000'
 
 
 // API Endpoints
@@ -226,7 +226,24 @@ export class ApiClient {
     })
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`)
+      let errorMessage = `API Error: ${response.status} ${response.statusText}`
+      try {
+        const errorData = await response.json()
+        if (errorData) {
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail
+          } else if (Array.isArray(errorData.detail) && errorData.detail[0]?.msg) {
+            errorMessage = errorData.detail[0].msg
+          } else if (errorData.message) {
+            errorMessage = errorData.message
+          } else if (errorData.detail) {
+            errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail)
+          }
+        }
+      } catch (e) {
+        // Fallback to default message if JSON parsing fails
+      }
+      throw new Error(errorMessage)
     }
 
     return response.json()
