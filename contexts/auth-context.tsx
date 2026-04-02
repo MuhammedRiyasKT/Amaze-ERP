@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/login", {
+      const response = await fetch("https://api1.choisircraft.com/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
